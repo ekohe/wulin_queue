@@ -1,9 +1,7 @@
-if defined? WulinMaster
-  class SolidQueueProcessScreen < WulinMaster::Screen
-    title "Processes"
+class SolidQueueProcessScreen < WulinMaster::Screen
+  title "Processes"
 
-    path "/wulin_queue/processes"
+  path "/wulin_queue/processes"
 
-    grid SolidQueueProcessGrid
-  end
+  grid SolidQueueProcessGrid
 end

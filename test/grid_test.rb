@@ -148,8 +148,8 @@ class GridTest < WulinQueueTestCase
   end
 
   def test_the_process_grid_shows_every_process_kind
-    # mission_control hard-filtered to workers, which hid the dispatcher and
-    # scheduler — exactly the two processes that explain a stalled queue.
+    # The dispatcher and scheduler are usually the two that explain a stalled
+    # queue, so the grid must not be filtered down to workers.
     assert_equal WulinQueue::Process, SolidQueueProcessGrid.model
     assert_includes column_identifiers(SolidQueueProcessGrid), "kind"
   end

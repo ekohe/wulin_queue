@@ -44,7 +44,8 @@ What deliberately **isn't** tested here: anything that needs `wulin_master`'s ow
 
 ## Conventions
 
-- `wulin_master` and `wulin_audit` are optional peers, not dependencies. Every file that touches them must be guarded — `if defined? WulinMaster` around screens/grids/controllers, `respond_to?(:reject_audit)` / `respond_to?(:reject_action_log)` around wulin_audit's macros.
+- `wulin_master` is a hard requirement, so don't guard against its absence. It can't go in the gemspec (not on RubyGems), but the gem is useless without it, and a `if defined? WulinMaster` wrapper is worse than nothing: Zeitwerk would then report "expected file to define constant" instead of a plain `uninitialized constant WulinMaster`. The test suite supplies a stand-in.
+- `wulin_audit`, `wulin_excel` and `wulin_permits` *are* optional peers. Guard those — `respond_to?(:reject_audit)`, `defined?(WulinExcel)`, `defined?(Permission)`.
 - **Never write raw SQL for a delete.** Solid Queue keeps its concurrency semaphores consistent in `before_destroy` callbacks; bypassing the models leaks a semaphore and stalls every blocked job on that key forever. `execution_actions_test.rb` covers this.
 - Any column that's a Ruby method rather than a database column needs `sortable: false, filterable: false`. `grid_test.rb` enforces it.
 - Default-sort on `id`, never a timestamp — `created_at` is indexed on none of the eleven tables. `grid_test.rb` enforces both halves of that claim.

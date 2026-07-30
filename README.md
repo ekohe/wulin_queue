@@ -4,8 +4,6 @@
 
 Nine screens: **Pending**, **In Progress**, **Blocked**, **Failed**, **Scheduled** and **Finished** jobs, plus **Queues**, **Processes** and **Recurring Tasks**.
 
-Replaces [mission_control-jobs](https://github.com/rails/mission_control-jobs), which ships its own layout, stylesheet, Turbo/Stimulus controllers and HTTP basic auth, and renders outside the host's nav and permission system.
-
 ## Installation
 
 Add to your Gemfile, after `wulin_master`:
@@ -107,7 +105,9 @@ Solid Queue's default index names already run to 61 of PostgreSQL's 63 identifie
 
 ## WulinMaster Integration
 
-`WulinMaster` is an optional peer, not a dependency: every screen, grid and controller is guarded with `if defined? WulinMaster`, and the models load without it. `reject_audit` and `reject_action_log` come from `wulin_audit`, also not a dependency, and are called only when present.
+`wulin_master` is a hard requirement — the whole gem is screens, grids and controllers declared against it. It isn't in the gemspec because it isn't published to RubyGems; host apps supply it themselves (`gem "wulin_master", path:` or a git source), which is why this README says to add `wulin_queue` *after* it.
+
+`wulin_audit` and `wulin_excel` are genuinely optional: `reject_audit`/`reject_action_log` are called only when defined, and the Export action only appears when `WulinExcel` is loaded.
 
 Screens and grids are **top-level constants**, not namespaced — the menu DSL and wulin_master's `params[:screen].classify.safe_constantize` both resolve bare constants. Only models and controllers live under `WulinQueue::`. For the same reason the engine does not `isolate_namespace`, and `config/routes.rb` draws into the host application rather than into the engine, so the engine is never mounted.
 

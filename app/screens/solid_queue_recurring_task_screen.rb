@@ -1,9 +1,7 @@
-if defined? WulinMaster
-  class SolidQueueRecurringTaskScreen < WulinMaster::Screen
-    title "Recurring Tasks"
+class SolidQueueRecurringTaskScreen < WulinMaster::Screen
+  title "Recurring Tasks"
 
-    path "/wulin_queue/recurring_tasks"
+  path "/wulin_queue/recurring_tasks"
 
-    grid SolidQueueRecurringTaskGrid
-  end
+  grid SolidQueueRecurringTaskGrid
 end

@@ -1,9 +1,7 @@
-if defined? WulinMaster
-  class SolidQueueFinishedJobScreen < WulinMaster::Screen
-    title "Finished Jobs"
+class SolidQueueFinishedJobScreen < WulinMaster::Screen
+  title "Finished Jobs"
 
-    path "/wulin_queue/finished_jobs"
+  path "/wulin_queue/finished_jobs"
 
-    grid SolidQueueFinishedJobGrid
-  end
+  grid SolidQueueFinishedJobGrid
 end

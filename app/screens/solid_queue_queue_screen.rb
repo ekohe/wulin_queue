@@ -1,9 +1,7 @@
-if defined? WulinMaster
-  class SolidQueueQueueScreen < WulinMaster::Screen
-    title "Queues"
+class SolidQueueQueueScreen < WulinMaster::Screen
+  title "Queues"
 
-    path "/wulin_queue/queues"
+  path "/wulin_queue/queues"
 
-    grid SolidQueueQueueGrid
-  end
+  grid SolidQueueQueueGrid
 end
