@@ -1,0 +1,8 @@
+*.gem
+.bundle
+.bundler-cache
+vendor/bundle
+Gemfile.lock
+pkg/*
+.DS_Store
+docs/
