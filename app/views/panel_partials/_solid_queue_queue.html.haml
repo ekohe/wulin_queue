@@ -1,0 +1,100 @@
+-# One Materialize card per queue, laid out with flexbox rather than Materialize's
+-# .row/.col grid: the columns are fixed widths that cannot shrink, so a long
+-# queue name or a third stat overflowed the card. Every flex child here carries
+-# min-width: 0, which is what actually lets it shrink.
+-#
+-# The three counts are single headline numbers, so they are stat tiles rather
+-# than a chart: label in sentence case, value semibold, nothing to hover.
+-#
+-# Buttons are drawn only when the user holds the permission, exactly as the old
+-# grid's authorized? blocks did. That is cosmetic: wulin_permits' before_action
+-# rejects the request itself, so posting without the permission still 401s.
+- can = ->(action) { current_user.has_permission_with_name?("queues##{action}") }
+
+.wq-queues
+  - if panel.rows.empty?
+    .card-panel.wq-empty
+      %i.material-icons inbox
+      %span No queues yet — nothing has been enqueued.
+  - else
+    .wq-grid
+      - panel.rows.each do |row|
+        .card.wq-card
+          .card-content.wq-content
+            .wq-head
+              -# Long names shrink and ellipsise instead of pushing the status out
+              -# of the card; the full name stays available on hover.
+              %span.wq-name{title: row.name}= row.name
+              -# Status is icon + label, never colour alone: the icon carries the
+              -# state colour and the word repeats it for anyone who cannot see
+              -# the hue, or is in forced-colours mode.
+              %span.wq-status
+                - if row.paused
+                  %i.material-icons.wq-paused pause_circle_filled
+                  Paused
+                - else
+                  %i.material-icons.wq-running play_circle_filled
+                  Running
+            .wq-stats
+              .wq-stat
+                .wq-stat-label Pending
+                .wq-stat-value= number_with_delimiter(row.pending)
+              .wq-stat
+                .wq-stat-label Scheduled
+                .wq-stat-value= number_with_delimiter(row.scheduled)
+              .wq-stat
+                .wq-stat-label Blocked
+                .wq-stat-value= number_with_delimiter(row.blocked)
+          .card-action.wq-actions
+            - if row.paused
+              - if can.call("resume")
+                = button_to resume_wulin_queue_queues_path, params: {queue_name: row.name}, class: "btn waves-effect wq-btn", form_class: "wq-form" do
+                  %i.material-icons.left play_arrow
+                  Resume
+            - elsif can.call("pause")
+              = button_to pause_wulin_queue_queues_path, params: {queue_name: row.name}, class: "btn waves-effect wq-btn", form_class: "wq-form" do
+                %i.material-icons.left pause
+                Pause
+            - if can.call("clear") && row.pending.positive?
+              = button_to clear_wulin_queue_queues_path, params: {queue_name: row.name}, class: "btn waves-effect wq-btn wq-btn-danger", form_class: "wq-form", data: {confirm: "Discard all #{row.pending} pending job(s) on #{row.name}?"} do
+                %i.material-icons.left clear_all
+                Clear
+
+:css
+  /* Status steps are fixed and deliberately not themed — they mean the same
+     thing on every screen, so they must not follow WulinMaster.config.color_theme. */
+  .wq-queues { --wq-good: #0ca30c; --wq-warning: #fab219; --wq-critical: #d03b3b; padding: 12px; }
+
+  .wq-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+  /* Fixed basis, no grow: every card is the same width whatever the last row holds. */
+  .wq-card { flex: 0 1 320px; min-width: 280px; margin: 0; display: flex; flex-direction: column; }
+  .wq-content { flex: 1 1 auto; min-width: 0; }
+
+  .wq-head { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  .wq-name { flex: 1 1 auto; min-width: 0; font-size: 20px; font-weight: 500; line-height: 1.3;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The word stays in ink; only the icon carries the status colour. */
+  .wq-status { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+               font-size: 13px; font-weight: 600; color: rgba(0,0,0,.72); }
+  .wq-status .material-icons { font-size: 20px; line-height: 1; }
+  .wq-running { color: var(--wq-good); }
+  .wq-paused { color: var(--wq-warning); }
+
+  /* Each stat takes an equal share and is allowed to shrink, so three of them
+     fit whatever width the card ended up with. */
+  .wq-stats { display: flex; gap: 8px; margin-top: 16px; }
+  .wq-stat { flex: 1 1 0; min-width: 0; }
+  .wq-stat-label { font-size: 12px; color: rgba(0,0,0,.6); line-height: 1.2;
+                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wq-stat-value { font-size: 26px; font-weight: 600; line-height: 1.15; color: rgba(0,0,0,.87); }
+
+  /* Trailing edge, the Material convention for a card action area: it gives
+     every card the same vertical edge to scan down. */
+  .wq-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  /* Not display:block — that made each form a full-width flex item and
+     pushed the second button onto its own line. */
+  .wq-form { flex: 0 0 auto; margin: 0; }
+  .wq-btn { display: inline-flex; align-items: center; }
+  .wq-btn-danger { background-color: var(--wq-critical); }
+
+  .wq-empty { display: flex; align-items: center; gap: 8px; color: rgba(0,0,0,.6); }

@@ -94,9 +94,4 @@ class ModelTest < WulinQueueTestCase
     assert_raises(StandardError) { SolidQueue::RecurringTask.find_by!(key: "bad").next_time }
     assert_nil task.next_time
   end
-
-  def test_queue_reads_the_view_and_is_readonly
-    assert_equal "queues", WulinQueue::Queue.table_name
-    assert_predicate WulinQueue::Queue.new, :readonly?
-  end
 end

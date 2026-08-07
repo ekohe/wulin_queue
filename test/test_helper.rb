@@ -57,11 +57,32 @@ module WulinMaster
 
   class Screen
     class << self
-      attr_reader :declared_grid
+      attr_reader :declared_grid, :declared_panel
 
       def title(value = nil) = value ? @title = value : @title
       def path(value = nil) = value ? @path = value : @path
       def grid(klass) = @declared_grid = klass
+      def panel(klass) = @declared_panel = klass
+    end
+  end
+
+  # Queues has no table to grid, so it is a panel. Only the declarations the
+  # panel makes are recorded here; the real Panel's rendering is wulin_master's.
+  class Panel
+    class << self
+      attr_reader :declared_width
+
+      def title(value = nil) = value ? @title = value : @title
+      # ComponentStyling's real signature: a value plus an options hash.
+      def width(value, options = {}) = @declared_width = value
+      def fill_window(value = true, options = {}) = @declared_fill_window = value
+    end
+
+    attr_reader :screen, :config
+
+    def initialize(screen = nil, config = {})
+      @screen = screen
+      @config = config
     end
   end
 end
@@ -72,6 +93,7 @@ loader.push_dir(solid_queue_root.join("app/jobs"))
 loader.push_dir(GEM_ROOT.join("app/models"))
 loader.push_dir(GEM_ROOT.join("app/grids"))
 loader.push_dir(GEM_ROOT.join("app/screens"))
+loader.push_dir(GEM_ROOT.join("app/panels"))
 loader.setup
 
 # SolidQueue's engine registers this through an initializer, which never runs
@@ -107,17 +129,6 @@ module WulinQueue
       end
     end
 
-    # The view is PostgreSQL DDL. SQLite has no schema qualifier and no
-    # CREATE OR REPLACE VIEW, so those two words are adjusted and nothing else —
-    # the query itself, which is the part this gem wrote, runs for real.
-    def self.create_queues_view
-      sql = WulinQueue.view_sql("1_queues.sql")
-        .sub("CREATE OR REPLACE VIEW public.", "CREATE VIEW ")
-
-      ActiveRecord::Base.connection.execute("DROP VIEW IF EXISTS queues")
-      ActiveRecord::Base.connection.execute(sql)
-    end
-
     def self.with_prefix(prefix)
       set_prefix(prefix)
       yield
@@ -132,7 +143,6 @@ module WulinQueue
 end
 
 WulinQueue::TestSchema.load
-WulinQueue::TestSchema.create_queues_view
 
 # The gem's models are subclasses, so their table names are computed from the
 # prefix that was in force when they were first loaded. Reference them now, while

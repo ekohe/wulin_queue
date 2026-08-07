@@ -1,25 +1,43 @@
 module WulinQueue
+  # The Queues screen is a panel rather than a grid, so these act on the single
+  # queue_name its buttons post instead of a set of selected row ids, and they
+  # redirect back to the screen instead of answering the grid's JSON envelope.
+  #
+  # Every operation is SolidQueue::Queue's own. Nothing about a queue is stored,
+  # so find_by_name only wraps the string -- there is no record to miss.
   class QueuesController < BaseController
     controller_for_screen SolidQueueQueueScreen
 
-    # The queues view exposes queue_name as its id, so the selected row ids are
-    # the queue names.
     def pause
-      toolbar_action do
-        selected_ids.each { |name| ::SolidQueue::Pause.create_or_find_by!(queue_name: name) }
-      end
+      queue_action(&:pause)
     end
 
     def resume
-      toolbar_action { ::SolidQueue::Pause.where(queue_name: selected_ids).delete_all }
+      queue_action(&:resume)
     end
 
-    # discard_all_in_batches releases the concurrency locks of everything it
-    # deletes; deleting the rows directly would leave the semaphores held.
+    # #clear goes through ReadyExecution.discard_all_in_batches, which releases
+    # the concurrency locks of everything it deletes. Deleting the rows directly
+    # would leave the semaphores held and stall every blocked job on that key.
     def clear
-      toolbar_action do
-        selected_ids.each { |name| ReadyExecution.queued_as(name).discard_all_in_batches }
-      end
+      queue_action(&:clear)
+    end
+
+    private
+
+    def queue_action
+      name = params[:queue_name].presence
+      return redirect_to screen_path, alert: "No queue given." if name.nil?
+
+      yield ::SolidQueue::Queue.find_by_name(name)
+      redirect_to screen_path, notice: "#{action_name.capitalize} done for #{name}."
+    rescue => e
+      Rails.logger.warn "#{controller_path}##{action_name} failed: #{e.class}: #{e.message}"
+      redirect_to screen_path, alert: "#{action_name.capitalize} failed: #{e.message}"
+    end
+
+    def screen_path
+      "#{SolidQueueQueueScreen.path}?screen=#{SolidQueueQueueScreen}"
     end
   end
 end

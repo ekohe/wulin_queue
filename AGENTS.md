@@ -4,12 +4,12 @@
 
 ## Wiring it into a host app
 
-Four steps, all in the README's Installation section: the Gemfile, `db:migrate`, `//= require wulin_queue` in the asset manifest, and the `submenu "Background Jobs"` block in `ApplicationController.define_menu`. An engine can't add itself to the menu, and nothing auto-loads the JS.
+Four steps, all in the README's Installation section: the Gemfile, `db:migrate`, `//= require wulin_queue` in the asset manifest, and the `submenu "Background Jobs"` block in `ApplicationController.define_menu`. Eight of the nine screens are grids; Queues is a panel, because a queue is not a record. An engine can't add itself to the menu, and nothing auto-loads the JS.
 
 - **Do not run `solid_queue:install`.** `db/migrate/20260703165109_create_solid_queue_tables.rb` in this gem *is* Solid Queue's schema. A host that already ran the installer keeps its own migration and must not also get this one — check `schema_migrations` before adding the gem to an app that already had Solid Queue.
 - `solid_queue` arrives as a runtime dependency of this gem. A host app that also drives it directly (`bin/jobs`, `config/queue.yml`, `config.active_job.queue_adapter`) should still declare it in its own Gemfile — that's a direct dependency, not a transitive one.
-- If the host rebuilds views from `db/views/*.sql` for test databases (Rails' Ruby schema format doesn't dump views, so anything loaded from `schema.rb` loses them), that task needs this gem's view directory **and** the placeholder substitution — see the README. Without the substitution the view SQL is created with a literal `<solid_queue_prefix>` and fails.
-- Permissions are not auto-created on deploy in general, but this gem's migration creates all 32. After deploying, someone still has to *assign* them; until then only admins see the screens.
+- **This gem ships no database views.** The Queues screen is a panel over `SolidQueue::Queue`, not a grid over a `queues` view, so a host's `db/views` rake task needs nothing from here. A view name carries no `SolidQueue.table_name_prefix`, so the old `public.queues` was overwritten by whichever app sharing the database deployed last.
+- Permissions are not auto-created on deploy in general, but this gem's migration creates all 31. After deploying, someone still has to *assign* them; until then only admins see the screens.
 
 ## Gotchas
 

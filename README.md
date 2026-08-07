@@ -19,7 +19,7 @@ bundle install
 bin/rails db:migrate
 ```
 
-The migrations create Solid Queue's tables (so don't also run `solid_queue:install`), the `queues` view, and every permission the screens and actions need.
+The migrations create Solid Queue's tables (so don't also run `solid_queue:install`) and every permission the screens and actions need.
 
 Add the JavaScript to your asset manifest — one line, nothing auto-loads:
 
@@ -43,23 +43,17 @@ submenu "Background Jobs" do
 end
 ```
 
-If your app rebuilds views from `db/views/*.sql` (Rails' Ruby schema format doesn't dump views, so test databases loaded from `schema.rb` lose them), add this gem's view directory to that task and substitute the table-prefix placeholder:
-
-```ruby
-WulinQueue::Engine.config.root.join("db", "views", "*.sql")
-# ...
-view_content.gsub!(WulinQueue::TABLE_PREFIX_PLACEHOLDER, SolidQueue.table_name_prefix)
-```
-
 ## How It Works
 
 Each grid is backed by its **own execution table** — `solid_queue_ready_executions` for Pending, `solid_queue_failed_executions` for Failed, and so on — rather than by a computed status column over `solid_queue_jobs`. Every one of those tables has a unique index on `job_id`, and the job's own attributes arrive through `includes(:job)`, so there is no status derivation and no `EXISTS` scanning.
 
 The models are thin subclasses of Solid Queue's own (`WulinQueue::FailedExecution < SolidQueue::FailedExecution`). That is safe because `SolidQueue::Execution` is an abstract class and none of the concrete tables has a `type` column, so the subclass inherits its parent's table without Rails adding a single-table-inheritance condition. Retry, discard and dispatch logic comes along for free — see `test/model_test.rb`, which asserts all of this rather than assuming it.
 
-**`WulinQueue::Queue` is different.** `SolidQueue::Queue` is a plain Ruby object, and a grid needs a table, so it reads the `queues` view.
+**Queues is a panel, not a grid.** A queue is not a record anywhere in Solid Queue — it is a string repeated in the `queue_name` column of six tables — so there is nothing to grid. `SolidQueueQueuePanel` renders it from `SolidQueue::Queue`, whose `.all`, `#paused?`, `#pause`, `#resume`, `#clear` and `#size` already do everything the screen needs.
 
-That view lists every queue the app is *known* to use — from the jobs table, the three execution tables, `solid_queue_pauses` and `solid_queue_recurring_tasks` — not just the queues with work waiting right now. That distinction matters: a healthy worker drains the execution tables within milliseconds, so sourcing names only from them shows an empty screen on a working app, and a queue you can't see is a queue you can't pause. Reading the jobs table for the names is cheap despite its size, because `SELECT DISTINCT queue_name` is an index-only scan over `index_solid_queue_jobs_for_filtering`, the `DISTINCT` collapses it to one row per queue before the `UNION` sees it, and the table is bounded by `SolidQueue.clear_finished_jobs_after`.
+Earlier versions manufactured rows with a `queues` database view so the grid pipeline had a relation to query. That cost a migration whose version every host app shared, a SQL file, a placeholder token and host-side rake wiring — and because a view name carries no `SolidQueue.table_name_prefix`, two apps sharing a database silently repointed `public.queues` at their own tables on each deploy, so each saw the other's queues. The panel needs none of it.
+
+It lists every queue the app is *known* to use — from the jobs table, the three execution tables, `solid_queue_pauses` and `solid_queue_recurring_tasks` — not just the queues with work waiting right now. A healthy worker drains the execution tables within milliseconds, so sourcing names only from them shows an empty screen on a working app, and a queue you can't see is a queue you can't resume. Five grouped or distinct reads, all index-only.
 
 ### Actions
 
@@ -82,13 +76,13 @@ Every write goes **through the ActiveRecord models, never raw SQL**. Discarding 
 
 ### Permissions
 
-Screen permissions follow wulin_permits' naming — `SolidQueueFailedJobScreen` gives `solid_queue_failed_job#read` and `#cud`. Custom actions fall through to `<controller>#<action>`, e.g. `failed_jobs#retry`. Every action carries an `authorized?` block, and `db/migrate/…_create_wulin_queue_permissions.rb` creates all 32 permissions; `test/grid_test.rb` fails if an action is added without both.
+Screen permissions follow wulin_permits' naming — `SolidQueueFailedJobScreen` gives `solid_queue_failed_job#read` and `#cud`. Custom actions fall through to `<controller>#<action>`, e.g. `failed_jobs#retry`. Every action carries an `authorized?` block, and `db/migrate/…_create_wulin_queue_permissions.rb` creates all 31 permissions; `test/grid_test.rb` fails if an action is added without both.
 
 Hiding a button isn't security: wulin_permits' `create_permissions` before_action independently rejects the request itself, so a user without `failed_jobs#retry` gets a 401 even if they post directly.
 
 ### Table prefix
 
-Every table and index name in the migration, and every table the view reads, is built from `SolidQueue.table_name_prefix`. Apps sharing a database with another Solid Queue app can rename them from an initializer:
+Every table and index name in the migration is built from `SolidQueue.table_name_prefix`. Apps sharing a database with another Solid Queue app can rename them from an initializer:
 
 ```ruby
 # config/initializers/solid_queue.rb

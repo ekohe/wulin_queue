@@ -4,9 +4,17 @@ require "digest"
 # hardcoded, so an app that shares a database with another Solid Queue app can
 # set its own prefix (see the gem's README). With the default prefix this
 # produces exactly the names solid_queue's own installer does.
+#
+# if_not_exists rather than force: :cascade. force: drops the table first, which
+# in a migration means a re-run would take live queue tables with it -- it is a
+# schema.rb idiom, not a migration one. if_not_exists also makes this safe to
+# apply to a database that already holds some of these tables, which is what a
+# host app sharing a database with another Solid Queue app has to do: the engine
+# exposes one migration version to every host, so the second host needs its own
+# version number pointing at this same schema.
 class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
   def change
-    create_table table_for(:blocked_executions), force: :cascade do |t|
+    create_table table_for(:blocked_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.string "queue_name", null: false
       t.integer "priority", default: 0, null: false
@@ -18,7 +26,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["job_id"], name: index_for(:blocked_executions, "on_job_id"), unique: true
     end
 
-    create_table table_for(:claimed_executions), force: :cascade do |t|
+    create_table table_for(:claimed_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.bigint "process_id"
       t.datetime "created_at", null: false
@@ -26,14 +34,14 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["process_id", "job_id"], name: index_for(:claimed_executions, "on_process_id_and_job_id")
     end
 
-    create_table table_for(:failed_executions), force: :cascade do |t|
+    create_table table_for(:failed_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.text "error"
       t.datetime "created_at", null: false
       t.index ["job_id"], name: index_for(:failed_executions, "on_job_id"), unique: true
     end
 
-    create_table table_for(:jobs), force: :cascade do |t|
+    create_table table_for(:jobs), if_not_exists: true do |t|
       t.string "queue_name", null: false
       t.string "class_name", null: false
       t.text "arguments"
@@ -51,13 +59,13 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["scheduled_at", "finished_at"], name: index_for(:jobs, "for_alerting")
     end
 
-    create_table table_for(:pauses), force: :cascade do |t|
+    create_table table_for(:pauses), if_not_exists: true do |t|
       t.string "queue_name", null: false
       t.datetime "created_at", null: false
       t.index ["queue_name"], name: index_for(:pauses, "on_queue_name"), unique: true
     end
 
-    create_table table_for(:processes), force: :cascade do |t|
+    create_table table_for(:processes), if_not_exists: true do |t|
       t.string "kind", null: false
       t.datetime "last_heartbeat_at", null: false
       t.bigint "supervisor_id"
@@ -71,7 +79,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["supervisor_id"], name: index_for(:processes, "on_supervisor_id")
     end
 
-    create_table table_for(:ready_executions), force: :cascade do |t|
+    create_table table_for(:ready_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.string "queue_name", null: false
       t.integer "priority", default: 0, null: false
@@ -81,7 +89,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["queue_name", "priority", "job_id"], name: "index_#{prefix}poll_by_queue"
     end
 
-    create_table table_for(:recurring_executions), force: :cascade do |t|
+    create_table table_for(:recurring_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.string "task_key", null: false
       t.datetime "run_at", null: false
@@ -90,7 +98,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["task_key", "run_at"], name: index_for(:recurring_executions, "on_task_key_and_run_at"), unique: true
     end
 
-    create_table table_for(:recurring_tasks), force: :cascade do |t|
+    create_table table_for(:recurring_tasks), if_not_exists: true do |t|
       t.string "key", null: false
       t.string "schedule", null: false
       t.string "command", limit: 2048
@@ -106,7 +114,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["static"], name: index_for(:recurring_tasks, "on_static")
     end
 
-    create_table table_for(:scheduled_executions), force: :cascade do |t|
+    create_table table_for(:scheduled_executions), if_not_exists: true do |t|
       t.bigint "job_id", null: false
       t.string "queue_name", null: false
       t.integer "priority", default: 0, null: false
@@ -116,7 +124,7 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["scheduled_at", "priority", "job_id"], name: "index_#{prefix}dispatch_all"
     end
 
-    create_table table_for(:semaphores), force: :cascade do |t|
+    create_table table_for(:semaphores), if_not_exists: true do |t|
       t.string "key", null: false
       t.integer "value", default: 1, null: false
       t.datetime "expires_at", null: false
@@ -127,9 +135,14 @@ class CreateSolidQueueTables < ActiveRecord::Migration[8.1]
       t.index ["key"], name: index_for(:semaphores, "on_key"), unique: true
     end
 
+    # if_not_exists here too, for the same reason as the tables above: without it
+    # a re-run against a database that already holds some of these raises on the
+    # first existing key, and because a migration runs in a transaction that
+    # rolls back the tables this pass just created.
     %i[blocked_executions claimed_executions failed_executions ready_executions
       recurring_executions scheduled_executions].each do |table|
-      add_foreign_key table_for(table), table_for(:jobs), column: "job_id", on_delete: :cascade
+      add_foreign_key table_for(table), table_for(:jobs), column: "job_id",
+        on_delete: :cascade, if_not_exists: true
     end
   end
 

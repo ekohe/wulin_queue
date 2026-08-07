@@ -13,7 +13,6 @@ class GridTest < WulinQueueTestCase
     SolidQueueFailedJobScreen => SolidQueueFailedJobGrid,
     SolidQueueScheduledJobScreen => SolidQueueScheduledJobGrid,
     SolidQueueFinishedJobScreen => SolidQueueFinishedJobGrid,
-    SolidQueueQueueScreen => SolidQueueQueueGrid,
     SolidQueueProcessScreen => SolidQueueProcessGrid,
     SolidQueueRecurringTaskScreen => SolidQueueRecurringTaskGrid
   }.freeze
@@ -168,8 +167,7 @@ class GridTest < WulinQueueTestCase
 
   # AGENTS.md §5b: permissions are not auto-created on deploy.
   def test_every_action_permission_is_created_by_the_migration
-    created = CreateWulinQueuePermissions::ACTIONS +
-      CreateWulinQueuePermissions::SCREENS.flat_map { |s| ["#{s}#read", "#{s}#cud"] }
+    created = migration_permissions
 
     each_action do |grid, action|
       spy = PermissionSpy.new
@@ -185,9 +183,28 @@ class GridTest < WulinQueueTestCase
       # This is how wulin_permits derives it: WulinPermits::Extensions::Screen.
       name = screen.name.sub(/Screen\z/, "").underscore
 
-      assert_includes CreateWulinQueuePermissions::SCREENS, name,
+      assert_includes CreateWulinQueuePermissions::GRID_SCREENS, name,
         "no migration creates #{name}#read for #{screen}"
     end
+  end
+
+  # SCREENS above only maps the grid screens, so the panel screen needs its own
+  # check: index is a read action, so it still needs a #read permission even
+  # though it has no grid and therefore no #cud path.
+  def test_the_panel_screen_permission_is_created_by_the_migration
+    name = SolidQueueQueueScreen.name.sub(/Screen\z/, "").underscore
+
+    assert_includes CreateWulinQueuePermissions::PANEL_SCREENS, name
+    assert_includes migration_permissions, "#{name}#read"
+    refute_includes migration_permissions, "#{name}#cud",
+      "Queues has no create/update/destroy route, so a #cud permission is never checked"
+  end
+
+  # Everything ..._create_wulin_queue_permissions.rb actually creates.
+  def migration_permissions
+    CreateWulinQueuePermissions::ACTIONS +
+      CreateWulinQueuePermissions::GRID_SCREENS.flat_map { |s| ["#{s}#read", "#{s}#cud"] } +
+      CreateWulinQueuePermissions::PANEL_SCREENS.map { |s| "#{s}#read" }
   end
 
   # A wrong URL here is a button that silently posts to a 404.
