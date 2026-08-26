@@ -2,7 +2,8 @@
 
 .wq-status-bar
   - statuses.each do |value, label|
-    %a.btn.waves-effect.wq-status-btn.wq-status-inactive{href: "javascript:void(0)", "data-status": value}
+    - active = (value == "pending")
+    %a.btn.waves-effect.wq-status-btn{href: "javascript:void(0)", "data-status": value, class: (active ? "wq-status-active" : "wq-status-inactive")}
       = label
 
 :css
@@ -14,13 +15,20 @@
 
 :javascript
   $(function() {
-    $('.wq-status-bar').on('click', '.wq-status-btn', function() {
-      $(this).toggleClass('wq-status-active wq-status-inactive');
+    function applyStatusFilter(bar) {
       var active = [];
-      $(this).closest('.wq-status-bar').find('.wq-status-active').each(function() {
+      bar.find('.wq-status-active').each(function() {
         active.push($(this).data('status'));
       });
       var grid = gridManager.getGrid('solid_queue_job');
       if (grid) grid.loader.setParam('status', active.join(',') || '');
+    }
+
+    $('.wq-status-bar').on('click', '.wq-status-btn', function() {
+      $(this).toggleClass('wq-status-active wq-status-inactive');
+      applyStatusFilter($(this).closest('.wq-status-bar'));
     });
+
+    var bar = $('.wq-status-bar');
+    if (bar.find('.wq-status-active').length) applyStatusFilter(bar);
   });
