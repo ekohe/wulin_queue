@@ -1,0 +1,26 @@
+- statuses = [["pending", "Pending"], ["in_progress", "In Progress"], ["blocked", "Blocked"], ["failed", "Failed"], ["scheduled", "Scheduled"], ["finished", "Finished"]]
+
+.wq-status-bar
+  - statuses.each do |value, label|
+    %a.btn.waves-effect.wq-status-btn.wq-status-inactive{href: "javascript:void(0)", "data-status": value}
+      = label
+
+:css
+  .wq-status-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,.12); }
+  .wq-status-btn { text-transform: none; font-weight: 500; height: 32px; line-height: 32px; padding: 0 16px; border-radius: 16px; cursor: pointer; border: 1px solid rgba(0,0,0,.2); }
+  .wq-status-active { background-color: #1565c0; }
+  .wq-status-inactive { background-color: transparent; color: rgba(0,0,0,.6); box-shadow: none; }
+  .wq-status-inactive:hover { background-color: rgba(0,0,0,.08); }
+
+:javascript
+  $(function() {
+    $('.wq-status-bar').on('click', '.wq-status-btn', function() {
+      $(this).toggleClass('wq-status-active wq-status-inactive');
+      var active = [];
+      $(this).closest('.wq-status-bar').find('.wq-status-active').each(function() {
+        active.push($(this).data('status'));
+      });
+      var grid = gridManager.getGrid('solid_queue_job');
+      if (grid) grid.loader.setParam('status', active.join(',') || '');
+    });
+  });

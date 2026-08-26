@@ -52,6 +52,7 @@ module WulinMaster
       def multi_select(value = true, options = {}) = @declared_options[:multiSelect] = value
 
       def default_sorting_state(value = {}, options = {}) = @declared_options[:defaultSortingState] = value
+
     end
   end
 
