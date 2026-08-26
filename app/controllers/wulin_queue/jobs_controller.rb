@@ -34,12 +34,12 @@ module WulinQueue
     private
 
     STATUS_SCOPES = {
-      "pending"     => -> { where(id: ReadyExecution.select(:job_id)) },
+      "pending" => -> { where(id: ReadyExecution.select(:job_id)) },
       "in_progress" => -> { where(id: ClaimedExecution.select(:job_id)) },
-      "blocked"     => -> { where(id: BlockedExecution.select(:job_id)) },
-      "failed"      => -> { where(id: FailedExecution.select(:job_id)) },
-      "scheduled"   => -> { where(id: ScheduledExecution.select(:job_id)) },
-      "finished"    => -> { finished }
+      "blocked" => -> { where(id: BlockedExecution.select(:job_id)) },
+      "failed" => -> { where(id: FailedExecution.select(:job_id)) },
+      "scheduled" => -> { where(id: ScheduledExecution.select(:job_id)) },
+      "finished" => -> { finished }
     }.freeze
 
     def scope_by_status
