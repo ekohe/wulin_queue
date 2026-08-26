@@ -22,12 +22,6 @@
         .card.wq-card
           .card-content.wq-content
             .wq-head
-              -# Long names shrink and ellipsise instead of pushing the status out
-              -# of the card; the full name stays available on hover.
-              %span.wq-name{title: row.name}= row.name
-              -# Status is icon + label, never colour alone: the icon carries the
-              -# state colour and the word repeats it for anyone who cannot see
-              -# the hue, or is in forced-colours mode.
               %span.wq-status
                 - if row.paused
                   %i.material-icons.wq-paused pause_circle_filled
@@ -35,6 +29,7 @@
                 - else
                   %i.material-icons.wq-running play_circle_filled
                   Running
+              %span.wq-name= row.name
             .wq-stats
               .wq-stat
                 .wq-stat-label Pending
@@ -63,16 +58,16 @@
 :css
   /* Status steps are fixed and deliberately not themed — they mean the same
      thing on every screen, so they must not follow WulinMaster.config.color_theme. */
-  .wq-queues { --wq-good: #0ca30c; --wq-warning: #fab219; --wq-critical: #d03b3b; padding: 12px; }
+  .wq-queues { --wq-good: #0ca30c; --wq-warning: #fab219; --wq-critical: #d03b3b; padding: 4px; overflow: hidden; }
 
   .wq-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
   /* Fixed basis, no grow: every card is the same width whatever the last row holds. */
-  .wq-card { flex: 0 1 320px; min-width: 280px; margin: 0; display: flex; flex-direction: column; }
-  .wq-content { flex: 1 1 auto; min-width: 0; }
+  .wq-card { flex: 0 1 320px; min-width: 0; margin: 0; display: flex; flex-direction: column; }
+  .wq-content { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 
-  .wq-head { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  .wq-head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .wq-name { flex: 1 1 auto; min-width: 0; font-size: 20px; font-weight: 500; line-height: 1.3;
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+             overflow-wrap: break-word; word-break: break-word; }
   /* The word stays in ink; only the icon carries the status colour. */
   .wq-status { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
                font-size: 13px; font-weight: 600; color: rgba(0,0,0,.72); }
