@@ -13,6 +13,12 @@ WulinMaster.actions.ShowError = $.extend({}, WulinMaster.actions.BaseAction, {
     }
 
     var row = grid.getData()[rows[0]];
+
+    if (!row.exception_class && !row.error_message) {
+      displayErrorMessage('This job has no error information.');
+      return;
+    }
+
     var backtrace = row.backtrace || [];
 
     Ui.headerModal(row.exception_class || 'Error', {
@@ -20,7 +26,7 @@ WulinMaster.actions.ShowError = $.extend({}, WulinMaster.actions.BaseAction, {
         $(modal)
           .find('.modal-content')
           .html(
-            '<p>' + escapeHtml(row.message || '') + '</p>' +
+            '<p>' + escapeHtml(row.error_message || '') + '</p>' +
               '<pre style="overflow: auto; white-space: pre-wrap">' +
               escapeHtml(backtrace.join('\n')) +
               '</pre>'
