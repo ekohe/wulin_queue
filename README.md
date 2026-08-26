@@ -2,7 +2,7 @@
 
 [Solid Queue](https://github.com/rails/solid_queue) screens for [WulinMaster](https://github.com/ekohe/wulin_master) — background jobs as ordinary wulin screens, with the host app's own nav, login, permission model and grid filtering/sorting/export.
 
-Nine screens: **Pending**, **In Progress**, **Blocked**, **Failed**, **Scheduled** and **Finished** jobs, plus **Queues**, **Processes** and **Recurring Tasks**.
+Four screens: **Jobs** (with multi-select status filtering), **Queues**, **Processes** and **Recurring Tasks**.
 
 ## Installation
 
@@ -31,12 +31,7 @@ An engine can't add itself to the menu, so add the submenu to your `ApplicationC
 
 ```ruby
 submenu "Background Jobs" do
-  item SolidQueuePendingJobScreen, icon: :hourglass_empty
-  item SolidQueueInProgressJobScreen, icon: :play_circle_outline
-  item SolidQueueBlockedJobScreen, icon: :block
-  item SolidQueueFailedJobScreen, icon: :error_outline
-  item SolidQueueScheduledJobScreen, icon: :schedule
-  item SolidQueueFinishedJobScreen, icon: :done_all
+  item SolidQueueJobScreen, icon: :work
   item SolidQueueQueueScreen, icon: :layers
   item SolidQueueProcessScreen, icon: :memory
   item SolidQueueRecurringTaskScreen, icon: :update
@@ -45,9 +40,9 @@ end
 
 ## How It Works
 
-Each grid is backed by its **own execution table** — `solid_queue_ready_executions` for Pending, `solid_queue_failed_executions` for Failed, and so on — rather than by a computed status column over `solid_queue_jobs`. Every one of those tables has a unique index on `job_id`, and the job's own attributes arrive through `includes(:job)`, so there is no status derivation and no `EXISTS` scanning.
+The unified Jobs screen shows all jobs from `solid_queue_jobs` with a status panel for multi-select filtering. Status is derived from which execution table holds the job (ready → pending, claimed → in_progress, etc.). The controller scopes queries using efficient `WHERE id IN (SELECT job_id FROM ...)` subqueries against the execution tables, so filtering stays index-backed.
 
-The models are thin subclasses of Solid Queue's own (`WulinQueue::FailedExecution < SolidQueue::FailedExecution`). That is safe because `SolidQueue::Execution` is an abstract class and none of the concrete tables has a `type` column, so the subclass inherits its parent's table without Rails adding a single-table-inheritance condition. Retry, discard and dispatch logic comes along for free — see `test/model_test.rb`, which asserts all of this rather than assuming it.
+The models are thin subclasses of Solid Queue's own (`WulinQueue::FailedExecution < SolidQueue::FailedExecution`). That is safe because `SolidQueue::Execution` is an abstract class and none of the concrete tables has a `type` column, so the subclass inherits its parent's table without Rails adding a single-table-inheritance condition. Retry, discard and dispatch logic comes along for free — see `test/model_test.rb`, which asserts all of this rather than assuming it. `WulinQueue::Job` adds a virtual `status` attribute and error delegation methods (`exception_class`, `error_message`, `backtrace`) for the grid.
 
 **Queues is a panel, not a grid.** A queue is not a record anywhere in Solid Queue — it is a string repeated in the `queue_name` column of six tables — so there is nothing to grid. `SolidQueueQueuePanel` renders it from `SolidQueue::Queue`, whose `.all`, `#paused?`, `#pause`, `#resume`, `#clear` and `#size` already do everything the screen needs.
 
@@ -57,16 +52,15 @@ It lists every queue the app is *known* to use — from the jobs table, the thre
 
 ### Actions
 
-| Action | Screens | What it does |
+| Action | Screen | What it does |
 |---|---|---|
-| Retry | Failed | `FailedExecution#retry` per record, so execution counters reset |
-| Retry All | Failed | `SolidQueue::FailedExecution.retry_all` over every failed job, capped at 3000 |
-| Discard | Failed, Pending, Scheduled, Blocked, Finished | `Execution#discard`, or deletes the job on Finished |
-| Discard All | Failed | `discard_all_from_jobs` over every failed job, capped at 3000 |
-| Run Now | Blocked, Scheduled, Recurring Tasks | dispatches past the concurrency limit / brings `scheduled_at` forward / enqueues now |
+| Retry | Jobs | `FailedExecution#retry` per selected record |
+| Retry All | Jobs | `SolidQueue::FailedExecution.retry_all` over every failed job, capped at 3000 |
+| Discard | Jobs | `Job#discard` per selected record |
+| Show Error | Jobs | renders the stored backtrace in a modal, no request |
+| Run Now | Recurring Tasks | enqueues the task now |
 | Pause, Resume | Queues | adds or removes the `solid_queue_pauses` row |
 | Clear | Queues | `ReadyExecution.queued_as(name).discard_all_in_batches` |
-| Show Error | Failed | renders the stored backtrace in a modal, no request |
 
 Every write goes **through the ActiveRecord models, never raw SQL**. Discarding a ready job that holds a `concurrency_key` fires `before_destroy :unblock_next_blocked_job`, which signals the semaphore and releases the next blocked job on that key; a raw `DELETE` leaks the semaphore and stalls every blocked job on that key permanently.
 
@@ -76,7 +70,7 @@ Every write goes **through the ActiveRecord models, never raw SQL**. Discarding 
 
 ### Permissions
 
-Screen permissions follow wulin_permits' naming — `SolidQueueFailedJobScreen` gives `solid_queue_failed_job#read` and `#cud`. Custom actions fall through to `<controller>#<action>`, e.g. `failed_jobs#retry`. Every action carries an `authorized?` block, and `db/migrate/…_create_wulin_queue_permissions.rb` creates all 31 permissions; `test/grid_test.rb` fails if an action is added without both.
+Screen permissions follow wulin_permits' naming — `SolidQueueJobScreen` gives `solid_queue_job#read` and `#cud`. Custom actions fall through to `<controller>#<action>`, e.g. `jobs#retry`. Every action carries an `authorized?` block, and `db/migrate/…_create_wulin_queue_permissions.rb` creates all permissions; `test/grid_test.rb` fails if an action is added without both.
 
 Hiding a button isn't security: wulin_permits' `create_permissions` before_action independently rejects the request itself, so a user without `failed_jobs#retry` gets a 401 even if they post directly.
 
