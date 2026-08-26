@@ -19,7 +19,7 @@ class SolidQueueProcessGrid < WulinMaster::Grid
   column :supervisor_name, through: :supervisor, source: :name, label: "Supervisor", width: 260
   column :last_heartbeat_at, width: 160, type: "Datetime", datetime_format: :with_seconds
   column :created_at, label: "Started at", width: 160, type: "Datetime", datetime_format: :with_seconds
-  column :metadata, width: 300
+  column :metadata, width: 300, editable: false, formatter: "JsonFormatter"
 
   action :export if defined?(WulinExcel)
 end
