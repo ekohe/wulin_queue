@@ -47,6 +47,7 @@
     $('.wq-realtime-toggle input').on('change', function() {
       clearInterval(realtimeTimer);
       realtimeTimer = null;
+      M.toast({html: this.checked ? 'Realtime updates enabled, every 10s!' : 'Realtime updates disabled!'});
       if (this.checked) {
         realtimeTimer = setInterval(function() {
           if (!document.contains(document.querySelector('.wq-status-bar'))) {
