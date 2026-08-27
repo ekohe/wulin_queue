@@ -26,12 +26,11 @@
   .wq-realtime-toggle input:checked + .wq-realtime-track::after { transform: translateX(16px); }
 
 :javascript
-  $(function() {
+  (function() {
     function applyStatusFilter(bar) {
-      var active = [];
-      bar.find('.wq-status-active').each(function() {
-        active.push($(this).data('status'));
-      });
+      var active = bar.find('.wq-status-active').map(function() {
+        return $(this).data('status');
+      }).get();
       var grid = gridManager.getGrid('solid_queue_job');
       if (grid) grid.loader.setParam('status', active.join(',') || '');
     }
@@ -56,6 +55,9 @@
       }
     });
 
-    var bar = $('.wq-status-bar');
-    if (bar.find('.wq-status-active').length) applyStatusFilter(bar);
-  });
+    // Apply default filter after the grid script (rendered below this panel) executes.
+    setTimeout(function() {
+      var bar = $('.wq-status-bar');
+      if (bar.find('.wq-status-active').length) applyStatusFilter(bar);
+    }, 0);
+  })();
