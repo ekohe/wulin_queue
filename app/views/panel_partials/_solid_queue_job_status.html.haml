@@ -25,8 +25,11 @@
     }
 
     $('.wq-status-bar').on('click', '.wq-status-btn', function() {
-      $(this).toggleClass('wq-status-active wq-status-inactive');
-      applyStatusFilter($(this).closest('.wq-status-bar'));
+      var wasActive = $(this).hasClass('wq-status-active');
+      var bar = $(this).closest('.wq-status-bar');
+      bar.find('.wq-status-btn').removeClass('wq-status-active').addClass('wq-status-inactive');
+      if (!wasActive) $(this).removeClass('wq-status-inactive').addClass('wq-status-active');
+      applyStatusFilter(bar);
     });
 
     var bar = $('.wq-status-bar');
