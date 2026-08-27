@@ -49,6 +49,11 @@
       realtimeTimer = null;
       if (this.checked) {
         realtimeTimer = setInterval(function() {
+          if (!document.contains(document.querySelector('.wq-status-bar'))) {
+            clearInterval(realtimeTimer);
+            realtimeTimer = null;
+            return;
+          }
           var grid = gridManager.getGrid('solid_queue_job');
           if (grid) grid.loader.reloadData();
         }, 10000);
