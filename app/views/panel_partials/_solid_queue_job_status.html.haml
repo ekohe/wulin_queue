@@ -5,13 +5,25 @@
     - active = (value == "pending")
     %a.btn.waves-effect.wq-status-btn{href: "javascript:void(0)", "data-status": value, class: (active ? "wq-status-active" : "wq-status-inactive")}
       = label
+  .wq-realtime-spacer
+  %label.wq-realtime-toggle
+    %input{type: "checkbox"}
+    .wq-realtime-track
+    Realtime
 
 :css
-  .wq-status-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,.12); }
+  .wq-status-bar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,.12); align-items: center; }
   .wq-status-btn { text-transform: none; font-weight: 500; height: 32px; line-height: 32px; padding: 0 16px; border-radius: 16px; cursor: pointer; border: 1px solid rgba(0,0,0,.2); }
   .wq-status-active { background-color: #1565c0; }
   .wq-status-inactive { background-color: transparent; color: rgba(0,0,0,.6); box-shadow: none; }
   .wq-status-inactive:hover { background-color: rgba(0,0,0,.08); }
+  .wq-realtime-spacer { flex: 1; }
+  .wq-realtime-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 13px; color: rgba(0,0,0,.6); }
+  .wq-realtime-toggle input { display: none; }
+  .wq-realtime-track { width: 34px; height: 18px; border-radius: 9px; background: rgba(0,0,0,.2); position: relative; transition: background .2s; }
+  .wq-realtime-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .wq-realtime-toggle input:checked + .wq-realtime-track { background: #1565c0; }
+  .wq-realtime-toggle input:checked + .wq-realtime-track::after { transform: translateX(16px); }
 
 :javascript
   $(function() {
@@ -30,6 +42,18 @@
       bar.find('.wq-status-btn').removeClass('wq-status-active').addClass('wq-status-inactive');
       if (!wasActive) $(this).removeClass('wq-status-inactive').addClass('wq-status-active');
       applyStatusFilter(bar);
+    });
+
+    var realtimeTimer = null;
+    $('.wq-realtime-toggle input').on('change', function() {
+      clearInterval(realtimeTimer);
+      realtimeTimer = null;
+      if (this.checked) {
+        realtimeTimer = setInterval(function() {
+          var grid = gridManager.getGrid('solid_queue_job');
+          if (grid) grid.loader.reloadData();
+        }, 10000);
+      }
     });
 
     var bar = $('.wq-status-bar');
