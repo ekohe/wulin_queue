@@ -14,6 +14,8 @@ function JsonFormatter(row, cell, value, columnDef, dataContext) {
   span.textContent = compact;
   return span.outerHTML;
 }
+// grid_manager resolves formatters via eval(), needs global scope
+window.JsonFormatter = JsonFormatter;
 
 $(document).on('click', '.wq-json-cell', function () {
   var text = $(this).text();
