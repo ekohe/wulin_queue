@@ -58,7 +58,12 @@
 :css
   /* Status steps are fixed and deliberately not themed — they mean the same
      thing on every screen, so they must not follow WulinMaster.config.color_theme. */
-  .wq-queues { --wq-good: #0ca30c; --wq-warning: #fab219; --wq-critical: #d03b3b; padding: 4px; overflow: hidden; }
+  /* overflow:hidden makes this a block formatting context, which sits beside a
+     float instead of under it. The panel title is a floated h2 whose bottom
+     margin reaches below the header, so without the clear every card shifted
+     right by the title's width. The 20px side padding matches the h2's, so the
+     cards start under the title text. */
+  .wq-queues { --wq-good: #0ca30c; --wq-warning: #fab219; --wq-critical: #d03b3b; padding: 4px 20px; overflow: hidden; clear: both; }
 
   .wq-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
   /* Fixed basis, no grow: every card is the same width whatever the last row holds. */
