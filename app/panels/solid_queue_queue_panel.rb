@@ -19,7 +19,7 @@ class SolidQueueQueuePanel < WulinMaster::Panel
   # grid decide how many cards fit.
   width "100%"
 
-  Row = Struct.new(:name, :pending, :scheduled, :blocked, :paused, keyword_init: true)
+  Row = Struct.new(:name, :pending, :scheduled, :blocked, :paused)
 
   # Five small grouped/distinct reads, every one of them index-only, in place of
   # the view's UNION. Names come from the jobs table like SolidQueue::Queue.all,
