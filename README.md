@@ -6,10 +6,14 @@ Four screens: **Jobs** (with multi-select status filtering), **Queues**, **Proce
 
 ## Installation
 
-Add to your Gemfile, after `wulin_master`:
+Add the gem as a submodule on `develop`, as the apps do, and load it after `wulin_master`:
+
+```shell
+git submodule add -b develop git@gitlab.ekohe.com:ekohe/wulin/wulin_queue.git vendor/gems/wulin_queue
+```
 
 ```ruby
-gem "wulin_queue"
+gem "wulin_queue", path: "vendor/gems/wulin_queue"
 ```
 
 `solid_queue` comes along as a dependency. Then:
@@ -21,10 +25,10 @@ bin/rails db:migrate
 
 The migrations create Solid Queue's tables (so don't also run `solid_queue:install`) and every permission the screens and actions need.
 
-Add the JavaScript to your asset manifest — one line, nothing auto-loads:
+Import the JavaScript in the app's esbuild entry, after `wulin_master`:
 
-```
-//= require wulin_queue
+```js
+import "../../vendor/gems/wulin_queue/app/javascript/wulin_queue.esm.js"
 ```
 
 An engine can't add itself to the menu, so add the submenu to your `ApplicationController.define_menu`:
@@ -38,7 +42,7 @@ submenu "Background Jobs" do
 end
 ```
 
-## How It Works
+## Usage
 
 The unified Jobs screen shows all jobs from `solid_queue_jobs` with a status panel for multi-select filtering. Status is derived from which execution table holds the job (ready → pending, claimed → in_progress, etc.). The controller scopes queries using efficient `WHERE id IN (SELECT job_id FROM ...)` subqueries against the execution tables, so filtering stays index-backed.
 
@@ -64,7 +68,7 @@ It lists every queue the app is *known* to use — from the jobs table, the thre
 
 Every write goes **through the ActiveRecord models, never raw SQL**. Discarding a ready job that holds a `concurrency_key` fires `before_destroy :unblock_next_blocked_job`, which signals the semaphore and releases the next blocked job on that key; a raw `DELETE` leaks the semaphore and stalls every blocked job on that key permanently.
 
-**In Progress ships no write actions.** `ClaimedExecution#discard` raises `UndiscardableError`, so a button there could only ever fail.
+**In-progress jobs have no discard.** `ClaimedExecution#discard` raises `UndiscardableError`, so a button there could only ever fail.
 
 **Retry and Retry All differ, deliberately.** Per-record `#retry` resets the job's `executions` and `exception_executions` counters, so a `retry_on` budget starts over. `retry_all` can't: resetting counters means rewriting each job's serialized `arguments` one row at a time, which at 3000 rows is a request timeout. It dispatches in one pass and leaves the counters where the last attempt left them.
 
@@ -91,18 +95,24 @@ It has to be an initializer: Rails' `isolate_namespace` defines the default duri
 
 Solid Queue's default index names already run to 61 of PostgreSQL's 63 identifier bytes, and Rails raises on an over-long index name rather than truncating. Two of them overflow with any longer prefix, so the migration shortens those two and appends a digest of the full name.
 
-## WulinMaster Integration
+### WulinMaster integration
 
-`wulin_master` is a hard requirement — the whole gem is screens, grids and controllers declared against it. It isn't in the gemspec because it isn't published to RubyGems; host apps supply it themselves (`gem "wulin_master", path:` or a git source), which is why this README says to add `wulin_queue` *after* it.
+`wulin_master` is a hard requirement — the whole gem is screens, grids and controllers declared against it. It isn't in the gemspec because it isn't published to RubyGems; host apps supply it themselves (`gem "wulin_master", path:` or a git source), which is why `wulin_queue` goes after it in the Gemfile.
 
 `wulin_audit` and `wulin_excel` are genuinely optional: `reject_audit`/`reject_action_log` are called only when defined, and the Export action only appears when `WulinExcel` is loaded.
 
 Screens and grids are **top-level constants**, not namespaced — the menu DSL and wulin_master's `params[:screen].classify.safe_constantize` both resolve bare constants. Only models and controllers live under `WulinQueue::`. For the same reason the engine does not `isolate_namespace`, and `config/routes.rb` draws into the host application rather than into the engine, so the engine is never mounted.
 
-## Contributing
+## Development
 
-See `CONTRIBUTING.md`. From [Ekohe](https://ekohe.com).
+Ruby 4.0.9, Rails 8.1. See `CONTRIBUTING.md` for the structure and conventions.
+
+```shell
+bundle install
+bundle exec rake test
+bundle exec standardrb
+```
 
 ## License
 
-WulinQueue is released under the MIT license.
+MIT, see `LICENSE`.

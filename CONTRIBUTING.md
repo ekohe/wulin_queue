@@ -11,20 +11,19 @@ bundle exec standardrb       # lint (must be clean before commit)
 bundle exec standardrb --fix # auto-fix lint offenses
 ```
 
-CI (`.gitlab-ci.yml`) runs `standardrb` then `rake test` on every push.
+CI (`.gitlab-ci.yml`) runs `gem build`, `rake test` and `standardrb` on every push. The repo uses Ruby 4.0.9 and Rails 8.1 and commits `Gemfile.lock`.
 
 ## Structure
 
-- `lib/wulin_queue.rb` — entry point; `WulinQueue.view_sql` reads a file from `db/views` and substitutes `TABLE_PREFIX_PLACEHOLDER` with `SolidQueue.table_name_prefix`
+- `lib/wulin_queue.rb` — entry point; requires `solid_queue`, the version and the engine
 - `lib/wulin_queue/engine.rb` — `Rails::Engine`, deliberately without `isolate_namespace`; appends `db/migrate` to the host's migration paths
 - `config/routes.rb` — draws into `Rails.application.routes`, not the engine's; the engine is never mounted
-- `app/models/wulin_queue/` — thin subclasses of Solid Queue's models, plus `Queue`, which reads the `queues` view
-- `app/screens/`, `app/grids/` — **top-level** constants (`SolidQueueFailedJobScreen`), because the menu DSL and `params[:screen].classify.safe_constantize` resolve bare names
+- `app/models/wulin_queue/` — thin subclasses of Solid Queue's models, one per Solid Queue model the screens use
+- `app/screens/`, `app/grids/`, `app/panels/` — **top-level** constants (`SolidQueueJobScreen`), because the menu DSL and `params[:screen].classify.safe_constantize` resolve bare names
 - `app/controllers/wulin_queue/` — one-liners over `BaseController`, which carries the shared `reject_action_log` and the `ToolbarActions` concern
-- `app/assets/javascripts/wulin_queue.js` — the single manifest a host app requires; it pulls in `wulin_queue/action_helpers` and `wulin_queue/actions/*`
+- `app/javascript/wulin_queue.esm.js` — the entry a host app imports from its esbuild bundle; it imports `formatters`, `action_helpers` and `actions/*` from `app/assets/javascripts/wulin_queue/`. `app/assets/javascripts/wulin_queue.js` is the Sprockets manifest for the same files
 - `db/migrate/20260703165109_create_solid_queue_tables.rb` — Solid Queue's schema, with every name built from the table prefix. **Don't run `solid_queue:install` in a host app**; this replaces it
-- `db/views/1_queues.sql`, `db/migrate/…_create_wulin_queue_views.rb` — the view name is unprefixed, matching how `wulin_permits` names `user_all_permissions`
-- `db/migrate/…_create_wulin_queue_permissions.rb` — all 32 permissions; guarded on `defined?(Permission)`
+- `db/migrate/…_create_wulin_queue_permissions.rb` — all 14 permissions; guarded on `defined?(Permission)`
 
 ## Tests
 
@@ -38,9 +37,9 @@ CI (`.gitlab-ci.yml`) runs `standardrb` then `rake test` on every push.
 
 The `Gemfile` pins `solid_queue` to the exact version host apps run, so the suite verifies what actually ships. Bumping that pin is how you check compatibility with a newer Solid Queue.
 
-What deliberately **isn't** tested here: anything that needs `wulin_master`'s own query pipeline, `wulin_permits`, or PostgreSQL. Stubbing wulin_master faithfully enough to test the JSON endpoints would only assert against the stub. Those belong in a host app's suite — drive the nine screens, the toolbar buttons, and a non-admin user who lacks a permission.
+What deliberately **isn't** tested here: anything that needs `wulin_master`'s own query pipeline, `wulin_permits`, or PostgreSQL. Stubbing wulin_master faithfully enough to test the JSON endpoints would only assert against the stub. Those belong in a host app's suite — drive the four screens, the toolbar buttons, and a non-admin user who lacks a permission.
 
-`queues_view_test.rb` runs the real view SQL with two PostgreSQL-isms adjusted (`CREATE OR REPLACE VIEW public.` → `CREATE VIEW `), so the query's joins and aggregates are exercised for real. The `paused` column is asserted through raw SQL rather than the model, because SQLite has no boolean type to infer for a view column.
+`queues_panel_test.rb` runs the Queues panel's reads against the in-memory database.
 
 ## Conventions
 
